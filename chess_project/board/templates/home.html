@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>NinChess</title>
+
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+
+            display: flex;
+            justify-content: center;
+            align-items: center;
+
+            background: #222;
+            color: white;
+            font-family: Arial, sans-serif;
+        }
+
+        .container {
+            text-align: center;
+        }
+
+        h1 {
+            margin-bottom: 30px;
+            font-size: 48px;
+        }
+
+        .create-room {
+            display: inline-block;
+
+            padding: 14px 24px;
+
+            background: #769656;
+            color: white;
+
+            text-decoration: none;
+            font-size: 18px;
+            font-weight: bold;
+
+            border-radius: 8px;
+
+            transition: 0.2s;
+        }
+
+        .create-room:hover {
+            background: #5f7d45;
+            transform: translateY(-2px);
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>NinChess</h1>
+        <a href="{% url 'create_room' %}">
+            + Create Room
+        </a>
+        
+    </div>
+</body>
+</html>

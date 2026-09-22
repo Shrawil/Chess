@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NinChess - {{ room_id }}</title>
+    <style>
+    * {
+        box-sizing: border-box;
+    }
+
+    body {
+        margin: 0;
+        min-height: 100vh;
+
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+
+        background:
+            radial-gradient(circle at top, #303030 0%, #181818 55%, #101010 100%);
+
+        color: #000000;
+        font-family: Arial, sans-serif;
+    }
+
+    /* ---------- Header ---------- */
+
+    .header {
+        width: min(92vw, 720px);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+
+        margin-bottom: 16px;
+    }
+
+    .logo {
+        margin: 0;
+        font-size: 28px;
+        letter-spacing: 1px;
+    }
+
+    .player {
+        padding: 7px 12px;
+
+        border-radius: 20px;
+
+        background: #333;
+
+        font-size: 14px;
+        text-transform: capitalize;
+    }
+
+    /* ---------- Room information ---------- */
+
+    .room-info {
+        width: min(92vw, 720px);
+
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+
+        margin-bottom: 12px;
+
+        color: #aaa;
+        font-size: 14px;
+    }
+
+    .room-id {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .copy-button {
+        border: none;
+        border-radius: 6px;
+
+        padding: 6px 10px;
+
+        background: #444;
+        color: #ddd;
+
+        cursor: pointer;
+        font-size: 12px;
+
+        transition: background 0.15s;
+    }
+
+    .copy-button:hover {
+        background: #555;
+    }
+
+    /* ---------- Board ---------- */
+
+    .board-wrapper {
+        padding: 10px;
+
+        background: #111;
+
+        border-radius: 12px;
+
+        box-shadow:
+            0 20px 50px rgba(0, 0, 0, 0.5),
+            0 0 0 1px rgba(255, 255, 255, 0.05);
+    }
+
+    .chessboard {
+        width: min(80vw, 640px);
+        height: min(80vw, 640px);
+
+        display: grid;
+
+        grid-template-columns: repeat(8, 1fr);
+        grid-template-rows: repeat(8, 1fr);
+
+        overflow: hidden;
+
+        border-radius: 6px;
+    }
+
+    /* ---------- Squares ---------- */
+
+    .square {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+
+        font-size: clamp(32px, 7vw, 58px);
+
+        user-select: none;
+        cursor: pointer;
+
+        position: relative;
+
+        transition:
+            filter 0.12s,
+            transform 0.08s;
+    }
+
+    .light {
+        background: #f0d9b5;
+    }
+
+    .dark {
+        background: #b58863;
+    }
+
+    .square:hover {
+        filter: brightness(1.08);
+    }
+
+    /* ---------- Pieces ---------- */
+
+    .piece-white {
+        color: #fff;
+
+        text-shadow:
+            0 2px 2px rgba(0, 0, 0, 0.65),
+            0 0 2px rgba(0, 0, 0, 0.5);
+
+        z-index: 2;
+    }
+
+    .piece-black {
+        color: #151515;
+
+        text-shadow:
+            0 1px 1px rgba(255, 255, 255, 0.25);
+
+        z-index: 2;
+    }
+
+    /* ---------- Selected square ---------- */
+
+    .selected {
+        outline: 4px solid rgba(255, 215, 0, 0.9);
+        outline-offset: -4px;
+
+        filter: brightness(1.12);
+    }
+
+    /* ---------- Responsive ---------- */
+
+    @media (max-width: 600px) {
+
+        .header {
+            margin-bottom: 10px;
+        }
+
+        .logo {
+            font-size: 22px;
+        }
+
+        .room-info {
+            font-size: 12px;
+        }
+
+        .board-wrapper {
+            padding: 5px;
+            border-radius: 8px;
+        }
+
+        .chessboard {
+            width: 96vw;
+            height: 96vw;
+        }
+    }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <h1 class="logo">NinChess</h1>
+
+        <div class="player">
+            {{ player }}
+        </div>
+    </div>
+
+    <div class="room-info">
+
+        <div class="room-id">
+            Room: <strong>{{ room_id }}</strong>
+
+            <button
+                class="copy-button"
+                onclick="copyRoomLink()"
+            >
+                Copy Link
+            </button>
+        </div>
+
+    </div>
+
+    <div class="board-wrapper">
+        <div id="chessboard" class="chessboard"></div>
+    </div>
+
+    <script>
+        const roomId = "{{ room_id }}";
+        const player = "{{ player }}";
+        const flipped = player === "black";
+        const csrfToken = "{{ csrf_token }}";
+
+        let selectedSquare = null;
+
+        const pieces = {
+            // White pieces
+            "K": "♔", "Q": "♕", "R": "♖", "B": "♗", "N": "♘", "P": "♙",
+            // Black pieces (fixed to display filled symbols)
+            "k": "♚", "q": "♛", "r": "♜", "b": "♝", "n": "♞", "p": "♟"
+        };
+
+        function copyRoomLink() {
+
+            navigator.clipboard.writeText(
+                window.location.href
+            );
+
+            const button = document.querySelector(".copy-button");
+
+            button.textContent = "Copied!";
+
+            setTimeout(() => {
+                button.textContent = "Copy Link";
+            }, 1500);
+        }
+
+        function createBoard(fen) {
+            const boardElement = document.getElementById("chessboard");
+            boardElement.innerHTML = "";
+            const position = fen.split(" ")[0];
+            const rows = position.split("/");        
+            let board = [];       
+            for (let row = 0; row < 8; row++) {
+                let currentRow = [];        
+                for (const character of rows[row]) {
+                    if (!isNaN(character)) {
+                        for (let i = 0; i < Number(character); i++) {
+                            currentRow.push("");
+                        }
+                    } else {
+                        currentRow.push(pieces[character]);
+                    }
+                }
+                board.push(currentRow);
+            }        
+            // Flip the visual board for Black
+            if (flipped) {
+                board.reverse();
+                        for (let row of board) {
+                    row.reverse();
+                }
+            }
+                    for (let row = 0; row < 8; row++) {
+                        for (let column = 0; column < 8; column++) {
+                            createSquare(
+                        row,
+                        column,
+                        board[row][column]
+                    );
+                }
+            }
+        }
+
+
+        function createSquare(row, column, piece) {
+            const square = document.createElement("div");
+        
+            const isLight = (row + column) % 2 === 0;
+        
+            square.classList.add("square");
+        
+            if (isLight) {
+                square.classList.add("light");
+            } else {
+                square.classList.add("dark");
+            }
+        
+            square.textContent = piece;
+        
+            // Convert visual position to actual chess position
+            let actualRow = flipped ? 7 - row : row;
+            let actualColumn = flipped ? 7 - column : column;
+        
+            const files = "abcdefgh";
+        
+            const file = files[actualColumn];
+            const rank = 8 - actualRow;
+        
+            square.dataset.square = file + rank;
+        
+            square.addEventListener(
+                "click",
+                handleSquareClick
+            );
+        
+            document
+                .getElementById("chessboard")
+                .appendChild(square);
+        }
+
+        function handleSquareClick(event) {
+            if (player !== "white" && player !== "black") {
+                return;
+            }
+        
+            const square = event.currentTarget;
+        
+            const squareName = square.dataset.square;
+        
+            console.log("Clicked:", squareName);
+        
+            if (selectedSquare === null) {
+        
+                selectedSquare = squareName;
+        
+                square.classList.add("selected");
+        
+            } else {
+        
+                const move = selectedSquare + squareName;
+        
+                console.log("Attempting move:", move);
+        
+                sendMove(move);
+        
+                selectedSquare = null;
+        
+                document
+                    .querySelectorAll(".selected")
+                    .forEach(square => {
+                        square.classList.remove("selected");
+                    });
+            }
+        }
+
+        async function sendMove(move) {
+            const formData = new FormData();
+            formData.append("move", move);
+
+            const response = await fetch(
+                `/room/${roomId}/move/`,
+                {
+                    method: "POST",
+                    headers: {
+                        "X-CSRFToken": csrfToken
+                    },
+                    body: formData
+                }
+            );
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                console.log("Move rejected:", data.error);
+                return;
+            }
+
+            console.log("Move accepted:", move);
+            updateBoard();
+        }
+
+        async function updateBoard() {
+            const response = await fetch(`/room/${roomId}/state/`);
+            const data = await response.json();
+
+            if (data.error) {
+                console.log(data.error);
+                return;
+            }
+
+            createBoard(data.fen);
+        }
+
+        updateBoard();
+        setInterval(updateBoard, 1000);
+    </script>
+</body>
+</html>
