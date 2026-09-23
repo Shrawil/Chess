@@ -23,9 +23,9 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = 'django-insecure-2db_ys0he@21q18c*wyf6@kq*pr4@2)rxv2_h!#i!tm&6cdf%0'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = False
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['shrawilsri.pythonanywhere.com', 'http://127.0.0.1:8000/']
 
 
 # Application definition
@@ -38,7 +38,6 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'board',
-    'user',
 ]
 
 MIDDLEWARE = [
