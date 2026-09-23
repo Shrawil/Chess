@@ -1,35 +1,37 @@
 import secrets
 import string
 import chess
-
 from django.shortcuts import render, redirect
 from django.http import JsonResponse
+from .models import Room
 
-rooms = {}
 
 def resign(request, room_id):
     if request.method != "POST":
         return JsonResponse({"error": "POST required"}, status=405)
 
-    if room_id not in rooms:
+    try:
+        room = Room.objects.get(room_id=room_id)
+    except Room.DoesNotExist:
         return JsonResponse({"error": "Room not found"}, status=404)
 
-    rooms.pop(room_id)
+    room.delete()
 
     return JsonResponse({"success": True})
 
-def make_move(request, room_id):
-    if room_id not in rooms:
-        return JsonResponse({
-            "error": "Room not found"
-        }, status=404)
 
+def make_move(request, room_id):
     if request.method != "POST":
         return JsonResponse({
             "error": "POST required"
         }, status=405)
 
-    room = rooms[room_id]
+    try:
+        room = Room.objects.get(room_id=room_id)
+    except Room.DoesNotExist:
+        return JsonResponse({
+            "error": "Room not found"
+        }, status=404)
 
     session_id = request.session.session_key
 
@@ -39,10 +41,10 @@ def make_move(request, room_id):
         }, status=403)
 
     # Determine who is making the move
-    if room["white"] == session_id:
+    if room.white == session_id:
         player = chess.WHITE
 
-    elif room["black"] == session_id:
+    elif room.black == session_id:
         player = chess.BLACK
 
     else:
@@ -50,7 +52,7 @@ def make_move(request, room_id):
             "error": "Spectators cannot make moves"
         }, status=403)
 
-    board = room["board"]
+    board = chess.Board(room.fen)
 
     # Check whose turn it is
     if board.turn != player:
@@ -72,7 +74,7 @@ def make_move(request, room_id):
             "error": "Invalid move format"
         }, status=400)
 
-    # SERVER validates the move
+    # Server validates the move
     if move not in board.legal_moves:
         return JsonResponse({
             "error": "Illegal move"
@@ -80,27 +82,36 @@ def make_move(request, room_id):
 
     board.push(move)
 
+    # Save new board state
+    room.fen = board.fen()
+    room.save()
+
     return JsonResponse({
         "success": True,
-        "fen": board.fen()
+        "fen": room.fen
     })
+
 
 def get_board(request, room_id):
 
-    if room_id not in rooms:
+    try:
+        room = Room.objects.get(room_id=room_id)
+    except Room.DoesNotExist:
         return JsonResponse({
             "error": "Room not found"
         }, status=404)
 
-    board = rooms[room_id]["board"]
+    board = chess.Board(room.fen)
 
     return JsonResponse({
         "fen": board.fen(),
         "turn": "white" if board.turn == chess.WHITE else "black",
     })
 
+
 def home(request):
-    return render(request, 'home.html')
+    return render(request, "home.html")
+
 
 def create_room(request):
     room_id = ''.join(
@@ -108,40 +119,40 @@ def create_room(request):
         for _ in range(8)
     )
 
-    rooms[room_id] = {
-        "white": None,
-        "black": None,
-        "board": chess.Board(),
-    }
+    Room.objects.create(
+        room_id=room_id,
+        fen=chess.Board().fen()
+    )
 
     return redirect("room", room_id=room_id)
 
+
 def room(request, room_id):
-    if room_id not in rooms:
+
+    try:
+        room = Room.objects.get(room_id=room_id)
+    except Room.DoesNotExist:
         return render(request, "room_not_found.html")
-    room = rooms[room_id]
+
+    if not request.session.session_key:
+        request.session.create()
 
     session_id = request.session.session_key
 
-    # Give the browser a session if it doesn't have one
-    if session_id is None:
-        request.session.create()
-        session_id = request.session.session_key
-
-    player = None
-
-    if room["white"] == session_id:
+    if room.white == session_id:
         player = "white"
 
-    elif room["black"] == session_id:
+    elif room.black == session_id:
         player = "black"
 
-    elif room["white"] is None:
-        room["white"] = session_id
+    elif room.white is None:
+        room.white = session_id
+        room.save()
         player = "white"
 
-    elif room["black"] is None:
-        room["black"] = session_id
+    elif room.black is None:
+        room.black = session_id
+        room.save()
         player = "black"
 
     else:
