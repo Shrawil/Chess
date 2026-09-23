@@ -176,10 +176,17 @@
     /* ---------- Selected square ---------- */
 
     .selected {
-        outline: 4px solid rgba(255, 215, 0, 0.9);
-        outline-offset: -4px;
+        box-shadow: inset 0 0 0 5px rgba(255, 215, 0, 0.95);
+        filter: brightness(1.15);
+    }
 
-        filter: brightness(1.12);
+    .square.selected::after {
+        content: "";
+        position: absolute;
+        inset: 20%;
+        border-radius: 50%;
+        background: rgba(255, 215, 0, 0.35);
+        pointer-events: none;
     }
 
     /* ---------- Responsive ---------- */
@@ -301,7 +308,8 @@
         const player = "{{ player }}";
         const flipped = player === "black";
         const csrfToken = "{{ csrf_token }}";
-
+        
+        let currentTurn = null; 
         let selectedSquare = null;
 
         const pieces = {
@@ -340,7 +348,7 @@
                             currentRow.push("");
                         }
                     } else {
-                        currentRow.push(pieces[character]);
+                        currentRow.push(character);
                     }
                 }
                 board.push(currentRow);
@@ -388,6 +396,8 @@
             const file = files[actualColumn];
             const rank = 8 - actualRow;
         
+            square.textContent = pieces[piece] || "";
+            square.dataset.piece = piece;
             square.dataset.square = file + rank;
         
             square.addEventListener(
@@ -399,39 +409,86 @@
                 .getElementById("chessboard")
                 .appendChild(square);
         }
-
+        
         function handleSquareClick(event) {
-            if (player !== "white" && player !== "black") {
+        
+            if (
+                (player === "white" && currentTurn !== "w") ||
+                (player === "black" && currentTurn !== "b")
+            ) {
+                return;
+            }
+                    
+            const square = event.currentTarget;
+            const squareName = square.dataset.square;
+            const piece = square.dataset.piece;
+        
+            const isWhitePiece = piece && piece === piece.toUpperCase();
+            const isBlackPiece = piece && piece === piece.toLowerCase();
+        
+            const isOwnPiece =
+                (player === "white" && isWhitePiece) ||
+                (player === "black" && isBlackPiece);
+        
+            // Nothing selected yet
+            if (selectedSquare === null) {
+        
+                if (!isOwnPiece) {
+                    return;
+                }
+        
+                selectSquare(square);
+        
                 return;
             }
         
-            const square = event.currentTarget;
+            // Clicking another own piece switches selection
+            if (isOwnPiece) {
         
-            const squareName = square.dataset.square;
+                selectSquare(square);
         
-            console.log("Clicked:", squareName);
-        
-            if (selectedSquare === null) {
-        
-                selectedSquare = squareName;
-        
-                square.classList.add("selected");
-        
-            } else {
-        
-                const move = selectedSquare + squareName;
-        
-                console.log("Attempting move:", move);
-        
-                sendMove(move);
-        
-                selectedSquare = null;
-                document
-                    .querySelectorAll(".selected")
-                    .forEach(square => {
-                        square.classList.remove("selected");
-                    });
+                return;
             }
+        
+            // Clicking the selected square deselects it
+            if (selectedSquare === squareName) {
+        
+                clearSelection();
+        
+                return;
+            }
+        
+            // Otherwise attempt a move
+            const move = selectedSquare + squareName;
+        
+            console.log("Attempting move:", move);
+        
+            sendMove(move);
+        
+            clearSelection();
+        }
+        
+        function selectSquare(square) {
+        
+            clearSelection();
+        
+            selectedSquare = square.dataset.square;
+        
+            square.classList.add("selected");
+        
+            console.log("Selected:", selectedSquare);
+        }
+        
+        
+        function clearSelection() {
+        
+            selectedSquare = null;
+        
+            document
+                .querySelectorAll(".selected")
+                .forEach(square => {
+                    square.classList.remove("selected");
+                });
         }
 
         async function sendMove(move) {
@@ -457,25 +514,41 @@
         }
 
         async function updateBoard() {
+
             const response = await fetch(`/room/${roomId}/state/`);
+
             if (response.status === 404) {
                 clearInterval(boardPolling);
                 document.getElementById("gameOver").style.display = "flex";
                 return;
             }
+
             const data = await response.json();
+
+            currentTurn = data.fen.split(" ")[1];
+
             createBoard(data.fen);
         }
 
-    async function resignGame() {
-        const response = await fetch(`/resign/${roomId}/`, {
-            method: "POST",
-            headers: {
-                "X-CSRFToken": csrfToken
-            }
-        });
+        async function resignGame() {
 
-        const data = await response.json();
+            const confirmed = confirm(
+                "Are you sure you want to resign?"
+            );
+
+            if (!confirmed) {
+                return;
+            }
+
+            const response = await fetch(`/resign/${roomId}/`, {
+                method: "POST",
+                headers: {
+                    "X-CSRFToken": csrfToken
+                }
+            });
+
+            const data = await response.json();
+
             if (response.ok) {
                 window.location.href = "{% url 'home' %}";
             } else {
