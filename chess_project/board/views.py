@@ -5,11 +5,20 @@ import chess
 from django.shortcuts import render, redirect
 from django.http import JsonResponse
 
-
 rooms = {}
 
-def make_move(request, room_id):
+def resign(request, room_id):
+    if request.method != "POST":
+        return JsonResponse({"error": "POST required"}, status=405)
 
+    if room_id not in rooms:
+        return JsonResponse({"error": "Room not found"}, status=404)
+
+    rooms.pop(room_id)
+
+    return JsonResponse({"success": True})
+
+def make_move(request, room_id):
     if room_id not in rooms:
         return JsonResponse({
             "error": "Room not found"
@@ -90,7 +99,7 @@ def get_board(request, room_id):
         "turn": "white" if board.turn == chess.WHITE else "black",
     })
 
-def board(request):
+def home(request):
     return render(request, 'home.html')
 
 def create_room(request):
@@ -108,10 +117,8 @@ def create_room(request):
     return redirect("room", room_id=room_id)
 
 def room(request, room_id):
-
     if room_id not in rooms:
-        return render(request, "404.html")
-
+        return render(request, "room_not_found.html")
     room = rooms[room_id]
 
     session_id = request.session.session_key

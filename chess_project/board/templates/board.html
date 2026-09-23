@@ -208,6 +208,47 @@
             height: 96vw;
         }
     }
+    .game-over {
+        position: fixed;
+        inset: 0;
+
+        display: none;
+        align-items: center;
+        justify-content: center;
+
+        background: rgba(0, 0, 0, 0.75);
+
+        z-index: 1000;
+    }
+
+    .game-over-box {
+        background: #1b1b1b;
+        padding: 30px;
+        border-radius: 16px;
+        text-align: center;
+
+        width: min(90%, 400px);
+    }
+
+    .game-over-box h2 {
+        margin-bottom: 10px;
+    }
+
+    .game-over-box p {
+        margin-bottom: 20px;
+        color: #aaa;
+    }
+
+    .game-over-box a {
+        display: inline-block;
+        padding: 10px 18px;
+
+        border-radius: 8px;
+        background: #fff;
+        color: #111;
+
+        text-decoration: none;
+    }
     </style>
 </head>
 <body>
@@ -231,8 +272,24 @@
             >
                 Copy Link
             </button>
+            <button onclick="resignGame()">
+                Resign
+            </button>
         </div>
+    </div>
 
+    <div id="gameOver" class="game-over">
+        <div class="game-over-box">
+            <h2>Room Closed</h2>
+
+            <p>
+                This room no longer exists.
+            </p>
+
+            <a href="{% url 'home' %}">
+                Create New Room
+            </a>
+        </div>
     </div>
 
     <div class="board-wrapper">
@@ -369,7 +426,6 @@
                 sendMove(move);
         
                 selectedSquare = null;
-        
                 document
                     .querySelectorAll(".selected")
                     .forEach(square => {
@@ -381,7 +437,6 @@
         async function sendMove(move) {
             const formData = new FormData();
             formData.append("move", move);
-
             const response = await fetch(
                 `/room/${roomId}/move/`,
                 {
@@ -392,32 +447,44 @@
                     body: formData
                 }
             );
-
             const data = await response.json();
-
             if (!response.ok) {
                 console.log("Move rejected:", data.error);
                 return;
             }
-
             console.log("Move accepted:", move);
             updateBoard();
         }
 
         async function updateBoard() {
             const response = await fetch(`/room/${roomId}/state/`);
-            const data = await response.json();
-
-            if (data.error) {
-                console.log(data.error);
+            if (response.status === 404) {
+                clearInterval(boardPolling);
+                document.getElementById("gameOver").style.display = "flex";
                 return;
             }
-
+            const data = await response.json();
             createBoard(data.fen);
         }
 
+    async function resignGame() {
+        const response = await fetch(`/resign/${roomId}/`, {
+            method: "POST",
+            headers: {
+                "X-CSRFToken": csrfToken
+            }
+        });
+
+        const data = await response.json();
+            if (response.ok) {
+                window.location.href = "{% url 'home' %}";
+            } else {
+                console.error(data.error);
+            }
+        }
+
         updateBoard();
-        setInterval(updateBoard, 1000);
+        const boardPolling = setInterval(updateBoard, 1000);
     </script>
 </body>
 </html>
