@@ -256,6 +256,20 @@
 
         text-decoration: none;
     }
+ 
+    .turn-indicator {
+        margin-bottom: 12px;
+
+        padding: 8px 16px;
+
+        border-radius: 20px;
+
+        background: #333;
+        color: #ddd;
+
+        font-size: 14px;
+        font-weight: bold;
+    }
     </style>
 </head>
 <body>
@@ -298,7 +312,9 @@
             </a>
         </div>
     </div>
-
+    <div id="turnIndicator" class="turn-indicator">
+        Waiting...
+    </div>
     <div class="board-wrapper">
         <div id="chessboard" class="chessboard"></div>
     </div>
@@ -526,6 +542,19 @@
             const data = await response.json();
 
             currentTurn = data.fen.split(" ")[1];
+
+            const isMyTurn =
+                (player === "white" && currentTurn === "w") ||
+                (player === "black" && currentTurn === "b");
+
+            const turnIndicator = document.getElementById("turnIndicator");
+
+            if (isMyTurn) {
+                turnIndicator.textContent = "Your turn";
+            } else {
+                turnIndicator.textContent =
+                    `Waiting for ${currentTurn === "w" ? "White" : "Black"}`;
+            }
 
             createBoard(data.fen);
         }
